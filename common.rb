@@ -1,4 +1,3 @@
-#!/usr/bin/env ruby
 ################################################################################
 # Copyright (C) 2009 Peter Jones <pjones@pmade.com>
 #
@@ -22,39 +21,25 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 ################################################################################
-require('erb')
-require('yaml')
-require('./common')
-
-################################################################################
-ContextualDevelopment.srequire {'rubygems'}
-ContextualDevelopment.srequire {'linkedin'}
-ContextualDevelopment.srequire {'sinatra'}
-
-################################################################################
-get('/') do
-  erb(:index)
-end
-
-################################################################################
-post('/go') do
-  $key    = params[:key]
-  $secret = params[:secret]
-  $client = LinkedIn::Client.new($key, $secret)
-  $client.set_callback_url(request.url.sub('go', 'ready'))
-  redirect($client.request_token.authorize_url)
-end
-
-################################################################################
-get('/ready') do
-  rtoken  = $client.request_token.token
-  rsecret = $client.request_token.secret
-  @token  = $client.authorize_from_request(rtoken, rsecret, params[:oauth_verifier])
-
-  File.open('tmp/token.yml', 'w') do |file|
-    token = {:key => $key, :secret => $secret, :atoken => @token.first, :asecret => @token.last}
-    file.write(token.to_yaml)
+# Ug, add some Ruby 1.9 stuff to Ruby 1.8 for roxml
+class Object
+  def tap
+    yield(self)
+    self
   end
+end
 
-  erb(:token)
+################################################################################
+module ContextualDevelopment
+  def self.srequire (&block)
+    eval("require(\"#{block.call}\")", block.binding)
+  rescue LoadError => e
+    if gem == 'rubygems'
+      $stderr.puts("Please install RubyGems: http://rubyforge.org/frs/?group_id=126")
+    else
+      $stderr.puts("You need the #{gem} gem, run the following command")
+      $stderr.puts("gem install #{gem}")
+    end
+    exit(1)
+  end
 end
